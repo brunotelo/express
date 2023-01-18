@@ -1,0 +1,41 @@
+version: '3'
+
+services: 
+    db: 
+        image: mysql:5.7
+        container_name: db
+        command: '--innodb-use-native-aio=0 --character-set-server=utf8'
+        restart: always
+        tty: true
+        ports: 
+            - 3306:3306
+        volumes: 
+            - ./dbdata:/var/lib/mysql
+            - ./mysql/scriptSQL:/docker-entrypoint-initdb.d
+        environment: 
+            - MYSQL_DATABASE=db-express
+            - MYSQL_ROOT_PASSWORD=root 
+            #- MYSQL_USER=root 
+        networks: 
+            - backend-network
+
+    backend:
+        container_name: python
+        build: 
+            context: ./backend
+        entrypoint: dockerize -wait tcp://db:3306 -timeout 60s
+        networks: 
+            - backend-network
+        tty: true
+        ports: 
+            - 8080:8080
+        volumes:
+            - ./backend/app:/code/app
+        command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+        # command: ["uvicorn", "--host", "0.0.0.0", "--port", "8080"]
+        depends_on: 
+            - db
+
+networks: 
+    backend-network: 
+        driver: bridge
